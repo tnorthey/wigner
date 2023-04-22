@@ -1,0 +1,26 @@
+
+DONE! --- automate getting r12.dat, r23.dat, etc.
+
+DONE! --- 000001.xyz -> 000001.dat (IAM curves; borrow a lot of already written python)
+
+DONE! --- chi2 for each PCD
+
+- do the workflow part on the cluster...
+  - makes more sense, especially for ~100,000
+
+- use -x option in Sharc. Not convert all to individual xyzs...
+  - doesn't really matter though. (it is super slow writing 100k files...)
+  - all python, read_xyz_traj() - save as npz to avoid doing it more than once
+
+  - same with pcds; pcd.npz, distances.npz
+
+- testing: s0p2 1000K, gives unrealistic geometries
+ - seems that I cannot open the ring this much by a simple wigner dist
+ - maybe I can open in 10 fs increments (not 20 or 30 fs)
+
+the Gaussian fitting thing for each bond-length
+- and plots
+
+find the closest xyz file to the Gaussian fitted distances
+
+

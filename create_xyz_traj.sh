@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cat xyz/??????_sample.xyz > xyz/traj.xyz
