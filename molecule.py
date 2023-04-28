@@ -69,6 +69,7 @@ class Molecule:
         atomarray = np.loadtxt(fname, skiprows=2, max_rows=14, dtype=str, usecols=[0])
         xyztraj = np.zeros((natoms, 3, ntsteps))
         for t in range(ntsteps):
+            print('read_xyz_traj: reading frame: %i' % t)
             xyztraj[:, :, t] = np.loadtxt(
                 fname, skiprows=14 * t + 2 * (t + 1), max_rows=14, usecols=[1, 2, 3]
             )

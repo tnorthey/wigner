@@ -1,7 +1,6 @@
 # custom
 tmp
-initconds
-initconds_*
+initconds*
 xyz/generated/*
 bagel/generated/*
 csv/*.csv
@@ -21,6 +20,8 @@ data_*
 slides/*
 chd_trajectories/
 *.xyz
+*.npz
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

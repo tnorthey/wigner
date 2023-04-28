@@ -5,22 +5,25 @@ DONE! --- 000001.xyz -> 000001.dat (IAM curves; borrow a lot of already written 
 
 DONE! --- chi2 for each PCD
 
-- do the workflow part on the cluster...
-  - makes more sense, especially for ~100,000
+- New code layout
+DONE! - STEP 1: generate_pool.py
+        - creates: pool.npz
+          - xyz_pool[natom, 3, npool]
+          - pcd_pool[nq, npool]
+          - reference_xyz[natom, 3]
+          - reference_iam[nq]
+          - qvector[nq]
 
-- use -x option in Sharc. Not convert all to individual xyzs...
-  - doesn't really matter though. (it is super slow writing 100k files...)
-  - all python, read_xyz_traj() - save as npz to avoid doing it more than once
+- STEP 2: chi2, distances + binning
+  - reads pool.npz
+  - creates: results.npz
+    - inv_chi2_arr[npool]
+    - dist_arr[i, j, npool]
+    - dist_bins[i, j, nbins]
+    - inv_chi2_bins[nbins]
+    - gaussian_fit: mu[i, j], sigma[i, j], A[i, j]
 
-  - same with pcds; pcd.npz, distances.npz
 
-- testing: s0p2 1000K, gives unrealistic geometries
- - seems that I cannot open the ring this much by a simple wigner dist
- - maybe I can open in 10 fs increments (not 20 or 30 fs)
-
-the Gaussian fitting thing for each bond-length
-- and plots
-
-find the closest xyz file to the Gaussian fitted distances
+- find the closest xyz file to the Gaussian fitted distances
 
 
