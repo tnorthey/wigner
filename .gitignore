@@ -22,6 +22,7 @@ chd_trajectories/
 *.xyz
 *.npz
 *.png
+r??_acc*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

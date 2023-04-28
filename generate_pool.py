@@ -8,21 +8,11 @@ import molecule
 m = molecule.Molecule()
 x = molecule.Xray()
 
-"""
-- creates: pool.npz
-  - xyz_pool[natom, 3, npool]
-  - pcd_pool[nq, npool]
-  - reference_xyz[natom, 3]
-  - reference_iam[nq]
-  - qvector[nq]
-"""
-
 # command line arguments
-xyztraj_file = str(sys.argv[1])  # name of xyztraj file
+xyztraj_file = str(sys.argv[1])  # name of xyztraj file (e.g. initconds.xyz)
 nframes = int(sys.argv[2])  # number of frames to read from xyz trajectory
 qtuple = (0.1, 8, 81)  # qmin, qmax, qlen
 distance_indices = [0, 1, 2, 3, 4, 5]
-
 
 def generate_pool(
     xyztraj_file,
@@ -33,12 +23,7 @@ def generate_pool(
     reference_xyz_file="reference.xyz",
 ):
     """
-    - creates: pool.npz
-      - xyz_pool[natom, 3, npool]
-      - pcd_pool[nq, npool]
-      - reference_xyz[natom, 3]
-      - reference_iam[nq]
-      - qvector[nq]
+    creates: pool.npz
     """
 
     # read xyz trajectory

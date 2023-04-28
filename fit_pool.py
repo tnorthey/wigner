@@ -8,29 +8,49 @@ import molecule
 m = molecule.Molecule()
 x = molecule.Xray()
 
-# calculate target PCD file
-target_pcd = 100 * (target_iam / reference_iam - 1)
+npz_data_file = str(sys.argv[1])
+# number of bins to accumulate distances into
+nbins = 30
 
-def fit_pool(target_pcd, nbins):
+def fit_pool(npz_data_file, nbins):
     '''
     reads pool.npz, then fits to target_pcd
     '''
 
     # read pool.npz
-    data = np.load("pool.npz")
-    natoms = data["natoms"]
-    atomarray = data["atomarray"]
-    atomic_numbers = data["atomic_numbers"]
-    nframes = data["nframes"]
-    xyztraj = data["xyztraj"]
-    pcd = ### NOT FINISHED!!! ####
+    data = np.load(npz_data_file)  # load
+    natoms=data["natoms"]
+    atomarray=data["atomarray"]
+    atomic_numbers=data["atomic_numbers"]
+    nframes=data["nframes"]
+    xyztraj=data["xyztraj"]
+    distance_indices=data["distance_indices"]
+    dist_arr=data["dist_arr"]
+    reference_xyz=data["reference_xyz"]
+    reference_iam=data["reference_iam"]
+    qvector=data["qvector"]
+    elastic_bool=data["elastic_bool"]
+    pcd_arr=data["pcd_arr"]
+    qlen = len(qvector)
+    nind = len(distance_indices)
     
+    # calculate target PCD
+    ## target_pcd should be an input, but using theoretical data for now
+    target_xyz_file = "target.xyz"
+    _, _, atomarray, target_xyz = m.read_xyz(target_xyz_file)
+    atomic_numbers = [m.periodic_table(symbol) for symbol in atomarray]
+    compton_array = x.compton_spline(atomic_numbers, qvector)
+    target_iam = x.iam_calc_compton(
+        atomic_numbers, target_xyz, qvector, compton_array, elastic_bool
+    )
+    target_pcd = 100 * (target_iam / reference_iam - 1)
+
     # calculate CHI2 and 1/CHI2 for each structure
     chi2_arr = np.zeros(nframes)
     inv_chi2_arr = np.zeros(nframes)
     for i in range(nframes):
         print('calculating CHI2 for frame %i' % i)
-        chi2 = np.sum((pcd_ - target_pcd) ** 2) / qlen
+        chi2 = np.sum((pcd_arr[:, i] - target_pcd) ** 2) / qlen
         inv_chi2 = 1 / chi2
         chi2_arr[i] = chi2
         inv_chi2_arr[i] = inv_chi2
@@ -50,12 +70,17 @@ def fit_pool(target_pcd, nbins):
             print(bins)
             
             inds = np.digitize(r, bins)
+            print(inds)
             
             # do I want these final dat files here? (for now ok)
-            with open("r%i%i_acc.dat" % (i, j), "w") as f:
-                for i in range(nbins):
+            with open("r%i%i_acc_%i.dat" % (i, j, nframes), "w") as f:
+                for k in range(nbins):
                     # ignore bins with low statistics
-                    if len(inv_chi2[inds == i]) > 10:
-                        f.write("%10.8f %10.8f \n" % (bins[i], np.max(inv_chi2[inds == i])))
+                    tmp = inv_chi2_arr[inds == k]
+                    if len(tmp) > 10:
+                        f.write("%10.8f %10.8f \n" % (bins[k], np.max(tmp)))
 
+
+# run function
+fit_pool(npz_data_file, nbins)
 

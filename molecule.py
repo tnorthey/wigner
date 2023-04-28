@@ -11,7 +11,8 @@ import scipy.io
 from scipy import interpolate
 from scipy.spatial.transform import Rotation as R
 import time as t
-#import chemcoord
+
+# import chemcoord
 
 ######
 class Molecule:
@@ -61,7 +62,7 @@ class Molecule:
         )
         return
 
-    def read_xyz_traj(self, fname, ntsteps):
+    def read_xyz_traj_slow(self, fname, ntsteps):
         """Read a .xyz trajectory file"""
         with open(fname, "r") as xyzfile:
             natoms = int(xyzfile.readline())
@@ -69,10 +70,29 @@ class Molecule:
         atomarray = np.loadtxt(fname, skiprows=2, max_rows=14, dtype=str, usecols=[0])
         xyztraj = np.zeros((natoms, 3, ntsteps))
         for t in range(ntsteps):
-            print('read_xyz_traj: reading frame: %i' % t)
+            print("read_xyz_traj: reading frame: %i" % t)
             xyztraj[:, :, t] = np.loadtxt(
                 fname, skiprows=14 * t + 2 * (t + 1), max_rows=14, usecols=[1, 2, 3]
             )
+        return natoms, comment, atomarray, xyztraj
+
+    def read_xyz_traj(self, fname, ntsteps):
+        """Read a .xyz trajectory file"""
+        with open(fname, "r") as xyzfile:
+            natoms = int(xyzfile.readline())
+            comment = xyzfile.readline()
+            xyztraj = np.zeros((natoms, 3, ntsteps))
+            atomarray = []
+            for line in range(natoms):
+                atomarray.append(xyzfile.readline().split()[0])
+                print(atomarray)
+        with open(fname, "r") as xyzfile:
+            for t in range(ntsteps):
+                print("read_xyz_traj: reading frame: %i" % t)
+                natoms = int(xyzfile.readline())
+                comment = xyzfile.readline()
+                for line in range(natoms):
+                    xyztraj[line, :, t] = xyzfile.readline().split()[1:4]
         return natoms, comment, atomarray, xyztraj
 
     def write_xyz_traj(self, fname, atoms, xyz_traj):
@@ -477,7 +497,9 @@ class Xray:
             compton_array[i, :] = interpolate.splev(qvector, tck, der=0)
         return compton_array
 
-    def iam_calc_compton(self, atomic_numbers, xyz, qvector, compton_array, elastic=False):
+    def iam_calc_compton(
+        self, atomic_numbers, xyz, qvector, compton_array, elastic=False
+    ):
         """calculate IAM molecular scattering curve for atoms, xyz, qvector"""
         natom = len(atomic_numbers)
         qlen = len(qvector)
@@ -492,10 +514,9 @@ class Xray:
             compton += compton_array[i, :]
         for i in range(natom):
             for j in range(i + 1, natom):  # j > i
-                molecular += (
-                    np.multiply(atomic_factor_array[i, :], atomic_factor_array[j, :])
-                    * np.sinc(qvector * np.linalg.norm(xyz[i, :] - xyz[j, :]) / np.pi)
-                )
+                molecular += np.multiply(
+                    atomic_factor_array[i, :], atomic_factor_array[j, :]
+                ) * np.sinc(qvector * np.linalg.norm(xyz[i, :] - xyz[j, :]) / np.pi)
         iam = atomic + 2 * molecular
         if not elastic:
             iam += compton
@@ -840,7 +861,6 @@ class Simulated_Annealing:
                 k += 1
         return compton, atomic_total, pre_molecular
 
-
     def displacements_from_wavenumbers(self, wavenumbers, exponential=False):
         nmodes = len(wavenumbers)
         displacement_factors = np.zeros(nmodes)
@@ -854,8 +874,6 @@ class Simulated_Annealing:
                 displacement_factors[i] = 0.0
         return displacement_factors
 
-
-
     def simulated_annealing_modes(
         self,
         atomlist,
@@ -867,7 +885,7 @@ class Simulated_Annealing:
         step_size_array,
         starting_temp=0.2,
         nsteps=10000,
-        gamma=1.0,          # excitation fraction
+        gamma=1.0,  # excitation fraction
         elastic=False,
     ):
         """simulated annealing minimisation to target_pcd_array"""
@@ -875,7 +893,9 @@ class Simulated_Annealing:
         ## start.xyz, reference.xyz ##
         atomic_numbers = [m.periodic_table(symbol) for symbol in atomlist]
         compton_array = x.compton_spline(atomic_numbers, qvector)
-        reference_iam = x.iam_calc_compton(atomic_numbers, reference_xyz, qvector, compton_array, elastic)
+        reference_iam = x.iam_calc_compton(
+            atomic_numbers, reference_xyz, qvector, compton_array, elastic
+        )
         natoms = starting_xyz.shape[0]  # number of atoms
         nmodes = displacements.shape[0]  # number of displacement vectors
         modes = list(range(nmodes))  # all modes
@@ -885,8 +905,8 @@ class Simulated_Annealing:
         compton, atomic_total, pre_molecular = self.atomic_pre_molecular(
             atomic_numbers, qvector, aa, bb, cc
         )
-        #target_abs_max = np.max(np.abs(target_pcd))
-        #target_pcd /= target_abs_max  # normalise target to abs_max
+        # target_abs_max = np.max(np.abs(target_pcd))
+        # target_pcd /= target_abs_max  # normalise target to abs_max
         ##=#=#=# END DEFINITIONS #=#=#=#
 
         ##=#=#=# INITIATE LOOP VARIABLES #=#=#=#=#
@@ -894,7 +914,7 @@ class Simulated_Annealing:
         i, c = 0, 0
         chi2, chi2_best = 1e9, 1e10
         chi2_array = np.zeros(nsteps)
-        #mdisp = displacements * step_size  # array of molecular displacements
+        # mdisp = displacements * step_size  # array of molecular displacements
         mdisp = displacements
         ##=#=#=# END INITIATE LOOP VARIABLES #=#=#
         while i < nsteps:
@@ -908,7 +928,9 @@ class Simulated_Annealing:
             ##=#=#=# DISPLACE XYZ RANDOMLY ALONG ALL DISPLACEMENT VECTORS #=#=#=##
             summed_displacement = np.zeros(mdisp[0, :, :].shape)
             for n in range(nmodes):
-                summed_displacement += mdisp[n, :, :] * step_size_array[n] * tmp * (2 * random() - 1)
+                summed_displacement += (
+                    mdisp[n, :, :] * step_size_array[n] * tmp * (2 * random() - 1)
+                )
             xyz_ = xyz + summed_displacement  # save a temporary displaced xyz: xyz_
             ##=#=#=# END DISPLACE XYZ RANDOMLY ALONG ALL DISPLACEMENT VECTORS #=#=#=##
 
@@ -945,7 +967,6 @@ class Simulated_Annealing:
         # remove ending zeros from chi2_array
         chi2_array = chi2_array[:c]
         return chi2_best, pcd_best, xyz_best, chi2_array
-
 
     def gradient_d(
         self,
@@ -1071,4 +1092,3 @@ class Simulated_Annealing:
         iam_best = iam_
         rk_best = rk_arr
         return chi2_best, iam_best, rk_best
-                                                 
