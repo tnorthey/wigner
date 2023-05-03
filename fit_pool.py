@@ -8,11 +8,12 @@ import molecule
 # initiate class instances
 m = molecule.Molecule()
 x = molecule.Xray()
+sa = molecule.Simulated_Annealing()
 
 npz_data_file = str(sys.argv[1])
 # number of bins to accumulate distances into
 nbins = 30
-A = 0.1   # Strength of HO contribution
+A = 100   # Strength of HO contribution
 
 
 def fit_pool(npz_data_file, nbins):
@@ -26,7 +27,7 @@ def fit_pool(npz_data_file, nbins):
     atomarray = data["atomarray"]
     atomic_numbers = data["atomic_numbers"]
     nframes = data["nframes"]
-    xyztraj = data["xyztraj"]
+    xyzpool = data["xyzpool"]
     distance_indices = data["distance_indices"]
     dist_arr = data["dist_arr"]
     reference_xyz = data["reference_xyz"]
@@ -68,21 +69,33 @@ def fit_pool(npz_data_file, nbins):
     for i in range(nho_indices):
         r0_arr[i] = np.linalg.norm(reference_xyz[ho_indices1[i], :] - reference_xyz[ho_indices2[i], :])
 
+    total_harmonic_contrib = 0
+    total_xray_contrib = 0
+    print("calculating CHI2 for %i frames..." % nframes)
     for k in range(nframes):
-        print("calculating CHI2 for frame %i" % k)
         
         # harmonic oscillator part of chi2
         harmonic_contrib = 0
         for i in range(nho_indices):
             r = dist_arr[ho_indices1[i], ho_indices2[i], k]
             harmonic_contrib += ho_value(A, r, r0_arr[i])
+        total_harmonic_contrib += harmonic_contrib
 
-        print('harmonic contrib: %f' % harmonic_contrib)
-        chi2 = np.sum((pcd_arr[:, k] - target_pcd) ** 2) / qlen + harmonic_contrib
-        print('chi2: %f' % chi2)
+        #print('harmonic contrib: %f' % harmonic_contrib)
+        chi2 = np.sum((pcd_arr[:, k] - target_pcd) ** 2) / qlen
+        #print('x-ray contrib: %f' % chi2)
+        total_xray_contrib += chi2
+        chi2 += harmonic_contrib
+        #print('chi2: %f' % chi2)
         inv_chi2 = 1 / chi2
         chi2_arr[k] = chi2
         inv_chi2_arr[k] = inv_chi2
+
+    total_contrib = total_xray_contrib + total_harmonic_contrib
+    xray_ratio = total_xray_contrib / total_contrib
+    harmonic_ratio = total_harmonic_contrib / total_contrib
+    print('xray contrib ratio: %f' % xray_ratio)
+    print('harmonic contrib ratio: %f' % harmonic_ratio)
 
     ### Binning and fitting the Gaussian
     # Fitting function
@@ -91,6 +104,8 @@ def fit_pool(npz_data_file, nbins):
 
     # binning distances.
     ## distances i, j
+    mu_arr = np.zeros((nind, nind))
+
     for i in range(nind):
         for j in range(i + 1, nind):
             r = dist_arr[i, j, :]
@@ -134,6 +149,7 @@ def fit_pool(npz_data_file, nbins):
             # popt[0] = A,  popt[0] = mu,  popt[0] = sigma 
             print('optimised parameters (A, mu, sigma):')
             print(popt)
+            mu_arr[i, j] = popt[1]
 
             ym = func(xn, popt[0], popt[1], popt[2])
             #print('Gaussian fit:')
@@ -142,15 +158,26 @@ def fit_pool(npz_data_file, nbins):
     print('r0_arr')
     print(r0_arr)
 
+    best_dist = 1e9  # start off really large
+    print('Finding closest structure to fitted distances...')
+    for k in range(nframes):
+        dist_min = 0
+        for i in range(nind):
+            for j in range(i + 1, nind):
+                r = dist_arr[i, j, k]
+                dist_min += ( r - mu_arr[i, j] )**2  # (only carbon-carbon distances)
+        dist_min_total = dist_min
+        if dist_min_total < best_dist:
+            best_dist = dist_min_total
+            best_frame = k
 
-    ## output best fit distances
-
-    ## find the closest structure in the pool
-    #### MAPD ? (check paper)
-    #### or something like RMSD but with distances
-    #### the one with lowest Sum( r_k - r_fit )**2 / nind (only carbon-carbon distances)
-    #### and/or one with the lowest nearest-neighbour distances ...
+    print('closest fit frame: %i' % best_frame)
+    xyz_best = xyzpool[:, :, best_frame]
+    m.write_xyz('best_fit.xyz', 'best', atomarray, xyz_best)
+    print("Done. Wrote 'best_fit.xyz'.")
 
 
 # run function
 fit_pool(npz_data_file, nbins)
+
+
